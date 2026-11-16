@@ -23,3 +23,22 @@ def registrar_entrega_cesta(familia_id: int, ciclo_referencia: str) -> EntregaCe
     if EntregaCesta.objects.filter(familia_id=familia_id, ciclo_referencia=ciclo_referencia).exists():
         raise ValidationError("Cesta já retirada por esta família no ciclo quinzenal atual.")
     return EntregaCesta.objects.create(familia_id=familia_id, ciclo_referencia=ciclo_referencia)
+
+import re
+from django.db.models import Sum
+from django.utils.html import escape
+
+def gerar_resumo_mensal_transparencia(mes_referencia: str) -> dict:
+    if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", mes_referencia):
+        raise ValueError("Formato de período inválido. Utilize AAAA-MM.")
+    ano, mes = map(int, mes_referencia.split("-"))
+    total_kg = LoteAlimento.objects.filter(
+        data_validade__year=ano, data_validade__month=mes
+    ).aggregate(total=Sum("peso_total_kg"))["total"] or 0
+    entregas = EntregaCesta.objects.filter(ciclo_referencia__startswith=mes_referencia)
+    return {
+        "periodo": escape(mes_referencia),
+        "total_kg_arrecadados": float(total_kg),
+        "total_cestas_entregues": entregas.count(),
+        "familias_unicas_atendidas": entregas.values("familia_id").distinct().count(),
+    }
