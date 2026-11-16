@@ -1,0 +1,19 @@
+name: Monitoramento Uptime - CestaCerta MVP
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install django
+      - name: Verificar disponibilidade (/health)
+        run: |
+          python3 app_mvp.py 8000 &
+          sleep 3
+          curl -f -s http://127.0.0.1:8000/health/ | grep UP
